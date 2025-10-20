@@ -12,7 +12,7 @@ import numpy as np
 
 # ===== CONFIGURATION PAGE =====
 st.set_page_config(
-    page_title="Modèle Prédictif - GrippeAlert",
+    page_title="Modèle Prédictif - Jonas",
     page_icon="🤖",
     layout="wide"
 )

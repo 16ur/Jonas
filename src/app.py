@@ -57,21 +57,6 @@ predictedPeak = 920
 weeksUntilPeak = 4
 alertLevel = "warning"
 
-# Sidebar
-with st.sidebar:
-    st.title("🏥 Jonas")
-    st.markdown("### Navigation")
-    
-    page = st.radio(
-        "",
-        ["📊 Tableau de bord", "📈 Données historiques", "🔮 Modèle prédictif", 
-         "🚨 Gestion des alertes", "⚙️ Paramètres"],
-        label_visibility="collapsed"
-    )
-    
-    st.markdown("---")
-    st.caption("Surveillance de l'activité grippale")
-
 # Header
 st.title("📊 Tableau de bord Jonas")
 st.markdown("**Suivi en temps réel de l'activité grippale et prévisions**")
