@@ -11,7 +11,7 @@ from datetime import datetime
 
 # ===== CONFIGURATION PAGE =====
 st.set_page_config(
-    page_title="Données Historiques - GrippeAlert",
+    page_title="Données Historiques - Jonas",
     page_icon="📅",
     layout="wide"
 )
@@ -313,5 +313,5 @@ with insight_col3:
 # ===== FOOTER =====
 st.markdown("---")
 st.caption(f"Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-st.caption("Données : Santé Publique France | Modèle : GrippeAlert v1.0")
+st.caption("Données : Santé Publique France | Modèle : Jonas v1.0")
 
