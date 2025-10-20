@@ -1,0 +1,61 @@
+RAPPORT D'EXPLORATION
+================================================================================
+
+Nombre de fichiers : 14
+
+
+couverture_vaccinale_departement.csv
+  Lignes : 1414
+  Colonnes : Année, Département Code, Département, HPV filles 1 dose à 15 ans, HPV filles 2 doses à 16 ans...
+
+urgences_sos_departement.csv
+  Lignes : 157040
+  Colonnes : 1er jour de la semaine, Semaine, Département Code, Département, Classe d'âge...
+
+vacc_2021_2022_1.csv
+  Lignes : 52
+  Colonnes : region, code, variable, groupe, valeur...
+
+vacc_2021_2022_2.csv
+  Lignes : 5
+  Colonnes : campagne, date, variable, valeur, cible...
+
+vacc_2021_2022_3.csv
+  Lignes : 1076
+  Colonnes : campagne, date, jour, variable, groupe...
+
+vacc_2022_2023_1.csv
+  Lignes : 52
+  Colonnes : region, code, variable, groupe, valeur...
+
+vacc_2022_2023_2.csv
+  Lignes : 5
+  Colonnes : campagne, date, variable, valeur, cible...
+
+vacc_2022_2023_3.csv
+  Lignes : 1056
+  Colonnes : campagne, date, jour, variable, groupe...
+
+vacc_2023_2024_1.csv
+  Lignes : 0
+  Colonnes : {"campagne", {"0", 2023-2024,"1", 2023-2024,"2", 2023-2024,"3"...
+
+vacc_2023_2024_2.csv
+  Lignes : 0
+  Colonnes : {"region", {"0", 11 - ILE-DE-France,"1", 11 - ILE-DE-France,"2", 24 - CENTRE-VAL-DE-LOIRE,"3"...
+
+vacc_2023_2024_3.csv
+  Lignes : 0
+  Colonnes : {"campagne", {"0", 2022-2023,"1", 2022-2023,"2", 2022-2023,"3"...
+
+vacc_2024_2025_1.csv
+  Lignes : 52
+  Colonnes : region, code, variable, groupe, valeur...
+
+vacc_2024_2025_2.csv
+  Lignes : 5
+  Colonnes : campagne, date, variable, valeur, cible...
+
+vacc_2024_2025_3.csv
+  Lignes : 964
+  Colonnes : campagne, date, jour, variable, groupe...
