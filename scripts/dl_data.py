@@ -9,9 +9,14 @@ import pandas as pd
 import os
 import requests
 from time import sleep
+from pathlib import Path
+
+# Trouver le répertoire racine du projet
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / 'data' / 'raw'
 
 # Créer les dossiers
-os.makedirs('../data/raw', exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # ===== FONCTION DE TÉLÉCHARGEMENT =====
 def download_file(url, filename, description):
@@ -24,7 +29,7 @@ def download_file(url, filename, description):
         response.raise_for_status()
 
         # Sauvegarder
-        output_path = f'../data/raw/{filename}'
+        output_path = DATA_DIR / filename
 
         # Si c'est un CSV directement
         if url.endswith('.csv') or 'exports/csv' in url:
@@ -114,7 +119,7 @@ print("="*70)
 
 # Lister les fichiers téléchargés
 downloaded = []
-raw_dir = '../data/raw'
+raw_dir = DATA_DIR
 if os.path.exists(raw_dir):
     files = os.listdir(raw_dir)
     downloaded = [f for f in files if f.endswith('.csv')]
