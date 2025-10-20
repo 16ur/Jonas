@@ -7,13 +7,19 @@ print("🔍 EXPLORATION DES DONNÉES\n")
 
 import pandas as pd
 import os
+from pathlib import Path
 
 pd.set_option('display.max_columns', None)
+
+# Trouver le répertoire racine du projet
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / 'data' / 'raw'
+DOCS_DIR = BASE_DIR / 'docs'
 
 # ===== FONCTION D'EXPLORATION =====
 def explore_file(filename):
     """Explore un fichier CSV"""
-    filepath = f'../data/raw/{filename}'
+    filepath = DATA_DIR / filename
     
     if not os.path.exists(filepath):
         print(f"⚠️ Fichier non trouvé : {filename}\n")
@@ -74,7 +80,7 @@ df_couverture = explore_file("couverture_vaccinale_departement.csv")
 
 # 3. Explorer UN fichier de vaccination comme exemple
 print("\n📅 FICHIER #3 : VACCINATION 2024-2025 (exemple)")
-vacc_files = [f for f in os.listdir('../data/raw') if f.startswith('vacc_2024')]
+vacc_files = [f for f in os.listdir(DATA_DIR) if f.startswith('vacc_2024')]
 if vacc_files:
     df_vacc = explore_file(vacc_files[0])
 
@@ -84,23 +90,22 @@ report.append("RAPPORT D'EXPLORATION")
 report.append("="*80)
 report.append("")
 
-raw_dir = '../data/raw'
-files = [f for f in os.listdir(raw_dir) if f.endswith('.csv')]
+files = [f for f in os.listdir(DATA_DIR) if f.endswith('.csv')]
 report.append(f"Nombre de fichiers : {len(files)}")
 report.append("")
 
 for f in sorted(files):
     try:
-        df = pd.read_csv(os.path.join(raw_dir, f), nrows=5)
+        df = pd.read_csv(DATA_DIR / f, nrows=5)
         report.append(f"\n{f}")
-        report.append(f"  Lignes : {len(pd.read_csv(os.path.join(raw_dir, f)))}")
+        report.append(f"  Lignes : {len(pd.read_csv(DATA_DIR / f))}")
         report.append(f"  Colonnes : {', '.join(df.columns[:5])}...")
     except:
         report.append(f"\n{f} - Erreur de lecture")
 
 # Sauvegarder
-os.makedirs('../docs', exist_ok=True)
-with open('../docs/rapport_exploration.txt', 'w', encoding='utf-8') as f:
+os.makedirs(DOCS_DIR, exist_ok=True)
+with open(DOCS_DIR / 'rapport_exploration.txt', 'w', encoding='utf-8') as f:
     f.write('\n'.join(report))
 
 print("="*80)
