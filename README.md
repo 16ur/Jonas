@@ -20,7 +20,7 @@
 
 ### Principe
 Nous analysons **3 sources de données** pour prédire les épidémies :
-1. **IAS® (Indicateur Activité Syndromique)** : Surveillance en temps réel des symptômes grippaux
+1. **IAS® (Indicateur Avancé Sanitaire)** : Surveillance en temps réel des symptômes grippaux
 2. **Urgences hospitalières** : Passages aux urgences pour grippe
 3. **Vaccination** : Taux de couverture vaccinale par région
 
