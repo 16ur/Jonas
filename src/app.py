@@ -213,6 +213,153 @@ fig_main.update_layout(
 
 st.plotly_chart(fig_main, use_container_width=True)
 
+st.markdown("---")
+
+st.markdown("### Carte des urgences grippe par région")
+
+last_week = data[data['date_semaine'] == latest_date].copy()
+
+region_coords = {
+    'Auvergne-Rhône-Alpes': (45.5, 5.0),
+    'Bourgogne-Franche-Comté': (47.0, 5.0),
+    'Bretagne': (48.0, -3.0),
+    'Centre-Val de Loire': (47.5, 1.5),
+    'Corse': (42.0, 9.0),
+    'Grand Est': (48.5, 6.0),
+    'Hauts-de-France': (50.0, 3.0),
+    'Île-de-France': (48.8, 2.5),
+    'Normandie': (49.0, 0.0),
+    'Nouvelle-Aquitaine': (45.0, 0.0),
+    'Occitanie': (43.5, 2.0),
+    'Pays de la Loire': (47.5, -1.0),
+    'Provence-Alpes-Côte d\'Azur': (43.5, 6.0),
+    # DOM-TOM
+    'Guadeloupe': (16.25, -61.58),
+    'Guyane': (4.0, -53.0),
+    'Réunion': (-21.13, 55.52),
+    'Mayotte': (-12.83, 45.14)
+}
+
+last_week['lat'] = last_week['region'].map(lambda x: region_coords.get(x, (0, 0))[0])
+last_week['lon'] = last_week['region'].map(lambda x: region_coords.get(x, (0, 0))[1])
+
+metropole = last_week[~last_week['region'].isin(['Guadeloupe', 'Guyane', 'Réunion', 'Mayotte'])]
+domtom = last_week[last_week['region'].isin(['Guadeloupe', 'Guyane', 'Réunion', 'Mayotte'])]
+
+col_map1, col_map2 = st.columns([2, 1])
+
+with col_map1:
+    fig_map_metro = px.scatter_geo(
+        metropole,
+        lat='lat',
+        lon='lon',
+        size='urgences_grippe',
+        color='urgences_grippe',
+        hover_name='region',
+        hover_data={
+            'urgences_grippe': ':,.0f',
+            'vacc_65_plus': ':.1f',
+            'lat': False,
+            'lon': False
+        },
+        color_continuous_scale='Reds',
+        size_max=50,
+        labels={'urgences_grippe': 'Urgences', 'vacc_65_plus': 'Couverture 65+ (%)'},
+        title="France métropolitaine"
+    )
+
+    fig_map_metro.update_geos(
+        scope='europe',
+        center=dict(lat=46.5, lon=2.5),
+        projection_scale=7,
+        visible=True,
+        resolution=50,
+        showcountries=True,
+        countrycolor="lightgray",
+        showland=True,
+        landcolor="white",
+        showlakes=True,
+        lakecolor="lightblue",
+        coastlinewidth=1,
+        coastlinecolor="gray"
+    )
+
+    fig_map_metro.update_layout(
+        height=500,
+        margin=dict(l=0, r=0, t=30, b=0),
+        showlegend=False
+    )
+
+    st.plotly_chart(fig_map_metro, use_container_width=True)
+
+with col_map2:
+    st.markdown("**DOM-TOM**")
+
+    if len(domtom) > 0:
+        fig_domtom_map = px.scatter_geo(
+            domtom,
+            lat='lat',
+            lon='lon',
+            size='urgences_grippe',
+            color='urgences_grippe',
+            hover_name='region',
+            hover_data={
+                'urgences_grippe': ':,.0f',
+                'vacc_65_plus': ':.1f',
+                'lat': False,
+                'lon': False
+            },
+            color_continuous_scale='Reds',
+            size_max=40,
+            labels={'urgences_grippe': 'Urgences', 'vacc_65_plus': 'Couverture 65+ (%)'}
+        )
+
+        fig_domtom_map.update_geos(
+            projection_type="natural earth",
+            showcountries=True,
+            countrycolor="lightgray",
+            showland=True,
+            landcolor="white",
+            showocean=True,
+            oceancolor="lightblue",
+            coastlinewidth=1,
+            coastlinecolor="gray"
+        )
+
+        fig_domtom_map.update_layout(
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
+            showlegend=False
+        )
+
+        st.plotly_chart(fig_domtom_map, use_container_width=True)
+
+        domtom_display = domtom[['region', 'urgences_grippe', 'vacc_65_plus']].copy()
+        domtom_display.columns = ['Région', 'Urgences', 'Couv. 65+']
+        domtom_display = domtom_display.sort_values('Urgences', ascending=False)
+
+        st.dataframe(
+            domtom_display.style.background_gradient(
+                subset=['Urgences'],
+                cmap='Reds'
+            ).background_gradient(
+                subset=['Couv. 65+'],
+                cmap='RdYlGn',
+                vmin=30,
+                vmax=80
+            ).format({
+                'Urgences': '{:,.0f}',
+                'Couv. 65+': '{:.1f}%'
+            }),
+            use_container_width=True,
+            hide_index=True,
+            height=150
+        )
+    else:
+        st.info("Aucune donnée DOM-TOM disponible")
+
+st.markdown("")
+
 st.markdown("")
 
 # Graphiques secondaires
