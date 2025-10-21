@@ -20,7 +20,7 @@
 
 ### Principe
 Nous analysons **3 sources de données** pour prédire les épidémies :
-1. **IAS® (Indicateur Activité Syndromique)** : Surveillance en temps réel des symptômes grippaux
+1. **IAS® (Indicateur Avancé Sanitaire)** : Surveillance en temps réel des symptômes grippaux
 2. **Urgences hospitalières** : Passages aux urgences pour grippe
 3. **Vaccination** : Taux de couverture vaccinale par région
 
@@ -173,6 +173,50 @@ Jonas/
 - **100% des pics** surviennent entre fin décembre et mi-janvier (S12-S16)
 - **Corrélation forte** : L'IAS peut prédire les urgences avec 48-70% de précision
 - **Délai d'alerte** : 2-3 semaines entre montée IAS et pic urgences
+
+---
+
+## Confidentialité
+
+### Respect de la vie privée
+
+**Toutes nos données sont anonymisées et agrégées** :
+- Aucune donnée individuelle de patients
+- Agrégation au niveau régional et hebdomadaire
+- Conformité RGPD : données publiques (Santé Publique France)
+- Respect de la règle CNIL : pas d'affichage de données < 5 cas
+- Aucune collecte de données utilisateur dans l'application
+
+**Sources publiques et transparentes** :
+- [data.gouv.fr](https://www.data.gouv.fr) - Données ouvertes françaises
+- [Santé Publique France](https://www.santepubliquefrance.fr) - Organisme officiel
+- [OpenHealth](https://www.openhealth.fr) - IAS® en open data
+
+### Éthique
+
+**Nos engagements** :
+
+**Transparence sur les limites**
+- Nos prédictions ont une marge d'erreur de ±20%
+- Le modèle ne remplace pas l'expertise médicale
+- Les données sous-représentent certaines populations rurales
+
+**Utilisation responsable**
+- Objectif : sauver des vies, pas créer de panique
+- Ton mesuré dans les alertes et communications
+- Recommandation systématique de consulter les autorités sanitaires
+
+**Accessibilité et inclusion**
+- Interface accessible (contraste élevé disponible)
+- Textes alternatifs sur tous les graphiques
+- Langage simple, évite le jargon médical
+
+**Open Source et partage**
+- Code disponible pour la communauté scientifique
+- Contribution au bien commun
+- Reproductibilité et amélioration collaborative
+
+**Avertissement** : Cette application fournit des **prédictions indicatives** basées sur des modèles statistiques. Les décisions médicales et sanitaires doivent être prises par des professionnels qualifiés en consultant les autorités sanitaires officielles.
 
 ---
 
