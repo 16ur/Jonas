@@ -132,6 +132,18 @@ peaks_data = get_peaks_data()
 # ===== HEADER =====
 st.title("Données Historiques")
 st.markdown("Analyse des saisons épidémiques précédentes et corrélations IAS®")
+st.markdown("""
+Cette page présente une **analyse historique des saisons épidémiques de grippe** en France métropolitaine.  
+Elle permet d’explorer les **tendances passées**, d’identifier les **périodes typiques de pic épidémique** et d’évaluer la **corrélation entre l’indicateur IAS® et les passages aux urgences**.  
+
+**Objectifs :**
+- Comprendre la **récurrence saisonnière** des vagues de grippe (octobre → mars)  
+- Visualiser l’évolution des **urgences grippe** sur les dernières saisons complètes  
+- Mesurer la **force de corrélation** entre IAS® et urgences pour valider son rôle d’indicateur précoce  
+- Identifier les **pics épidémiques** afin de mieux calibrer les modèles prédictifs  
+
+Cette analyse fournit le **socle analytique** sur lequel s’appuie Jonas pour anticiper les futures vagues de grippe.
+""")
 st.markdown("---")
 
 
@@ -139,6 +151,7 @@ st.markdown("---")
 col1, col2, col3 = st.columns(3)
 
 # Calculer les métriques réelles
+peaks_data = peaks_data[:-1]
 nb_saisons = len(peaks_data)
 if len(correlation_data) > 10:
     corr_r2 = np.corrcoef(correlation_data['ias'], correlation_data['urgences'])[0, 1] ** 2
