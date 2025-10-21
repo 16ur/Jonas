@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
+import numpy as np
+from pathlib import Path
 
 # Configuration de la page
 st.set_page_config(
@@ -24,247 +26,308 @@ st.markdown("""
         border-radius: 1rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
-    .alert-card {
-        padding: 1rem;
-        border-radius: 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-    .stAlert {
-        border-radius: 1rem;
-    }
     div[data-testid="stMetricValue"] {
         font-size: 2rem;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Données
-historicalData = pd.DataFrame({
-    'week': ["S40", "S41", "S42", "S43", "S44", "S45", "S46", "S47", "S48", "S49", "S50", "S51", "S52"],
-    'ias': [45, 52, 61, 75, 89, 105, 128, 156, None, None, None, None, None],
-    'erVisits': [120, 145, 178, 220, 285, 340, 420, 510, None, None, None, None, None],
-    'predicted': [None, None, None, None, None, None, None, 515, 625, 745, 850, 920, 880]
-})
+# Charger les données
+@st.cache_data
+def load_data():
+    df = pd.read_csv('data/processed/master_dataframe.csv')
+    df['date_semaine'] = pd.to_datetime(df['date_semaine'])
+    return df
 
-dailyIAS = pd.DataFrame({
-    'day': ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
-    'value': [148, 152, 156, 159, 162, 165, 168]
-})
+data = load_data()
 
-# Variables
-currentIAS = 156
-predictedPeak = 920
-weeksUntilPeak = 4
-alertLevel = "warning"
+# Calculer les données nationales (agrégation de toutes les régions)
+national_data = data.groupby('date_semaine').agg({
+    'urgences_grippe': 'sum',
+    'sos_medecins': 'sum',
+    'vacc_65_plus': 'mean',
+    'vacc_moins_65_risque': 'mean',
+    'vacc_65_74': 'mean',
+    'vacc_75_plus': 'mean'
+}).reset_index()
+
+national_data = national_data.sort_values('date_semaine')
+
+# Données récentes
+recent_data = national_data.tail(12).copy()
+latest_date = national_data['date_semaine'].max()
+
+# Métriques actuelles vs semaine précédente
+current_urgences = recent_data['urgences_grippe'].iloc[-1]
+previous_urgences = recent_data['urgences_grippe'].iloc[-2]
+urgences_delta = ((current_urgences - previous_urgences) / previous_urgences * 100) if previous_urgences > 0 else 0
+
+current_sos = recent_data['sos_medecins'].iloc[-1]
+previous_sos = recent_data['sos_medecins'].iloc[-2]
+sos_delta = ((current_sos - previous_sos) / previous_sos * 100) if previous_sos > 0 else 0
+
+current_vacc_65 = recent_data['vacc_65_plus'].iloc[-1]
+current_vacc_risque = recent_data['vacc_moins_65_risque'].iloc[-1]
+
+# Calcul des tendances (4 dernières semaines)
+last_4_weeks = recent_data.tail(4)
+trend_urgences = last_4_weeks['urgences_grippe'].diff().mean()
+
+# Déterminer le niveau d'alerte
+if trend_urgences > 1000:
+    alert_level = "error"
+    alert_text = "Forte hausse"
+elif trend_urgences > 0:
+    alert_level = "warning"
+    alert_text = "Hausse modérée"
+elif trend_urgences < -1000:
+    alert_level = "success"
+    alert_text = "Baisse significative"
+else:
+    alert_level = "info"
+    alert_text = "Situation stable"
 
 # Header
-st.title("📊 Tableau de bord Jonas")
-st.markdown("**Suivi en temps réel de l'activité grippale et prévisions**")
+st.title("Tableau de bord Jonas")
+st.markdown("**Surveillance de l'activité grippale en France**")
 st.markdown("")
 
-# Bannière d'alerte
-if alertLevel == "warning":
-    st.warning(f"""
-    ### ⚠️ Alerte : Pic épidémique prévu
-    
-    Un pic d'activité grippale est prévu dans **{weeksUntilPeak} semaines** avec 
-    environ **{predictedPeak} passages aux urgences** prévus.
-    """)
-    
-    if st.button("🔍 Voir les détails", key="alert_details"):
-        st.info("Redirection vers le modèle prédictif...")
+# Info dernière mise à jour
+col_info1, col_info2 = st.columns([2, 1])
+with col_info1:
+    st.info(f"Dernières données : Semaine du {latest_date.strftime('%d/%m/%Y')}")
+with col_info2:
+    if alert_level == "error":
+        st.error(f"{alert_text}")
+    elif alert_level == "warning":
+        st.warning(f"{alert_text}")
+    elif alert_level == "success":
+        st.success(f"{alert_text}")
+    else:
+        st.info(f"{alert_emoji} {alert_text}")
 
 st.markdown("")
 
-# KPI Cards
+# KPI Cards - Ligne 1: Urgences & SOS
+st.markdown("### Activité hospitalière")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.metric(
-        label="📍 IAS® actuel",
-        value=currentIAS,
-        delta="+8%",
-        delta_color="normal"
+        label="Urgences grippe (semaine)",
+        value=f"{current_urgences:,.0f}",
+        delta=f"{urgences_delta:+.1f}%",
+        delta_color="inverse"
     )
 
 with col2:
     st.metric(
-        label="📈 Pic prévu (passages)",
-        value=predictedPeak,
-        delta="+125%",
+        label="SOS Médecins (semaine)",
+        value=f"{current_sos:,.0f}",
+        delta=f"{sos_delta:+.1f}%",
         delta_color="inverse"
     )
 
 with col3:
+    # Somme des 4 dernières semaines
+    total_4_weeks_urgences = last_4_weeks['urgences_grippe'].sum()
     st.metric(
-        label="📅 Semaines avant pic",
-        value=weeksUntilPeak,
-        delta=None
+        label="Total 4 dernières semaines",
+        value=f"{total_4_weeks_urgences:,.0f}",
+        delta="Urgences"
     )
 
 with col4:
+    total_4_weeks_sos = last_4_weeks['sos_medecins'].sum()
     st.metric(
-        label="🎯 Précision modèle",
-        value="85%",
-        delta=None
+        label="Total 4 dernières semaines",
+        value=f"{total_4_weeks_sos:,.0f}",
+        delta="SOS Médecins"
     )
 
-st.markdown("")
 
-# Graphiques - Ligne 1
-col_chart1, col_chart2 = st.columns(2)
+st.markdown("---")
 
-with col_chart1:
-    st.markdown("#### 📊 Évolution IAS® (7 derniers jours)")
-    
-    fig_daily = go.Figure()
-    fig_daily.add_trace(go.Scatter(
-        x=dailyIAS['day'],
-        y=dailyIAS['value'],
-        mode='lines',
-        fill='tozeroy',
-        line=dict(color='#2563eb', width=3),
-        fillcolor='rgba(37, 99, 235, 0.1)',
-        name='IAS®'
-    ))
-    
-    fig_daily.update_layout(
-        height=300,
-        margin=dict(l=20, r=20, t=20, b=20),
-        xaxis_title="",
-        yaxis_title="IAS®",
-        hovermode='x unified',
-        plot_bgcolor='white',
-        paper_bgcolor='white'
-    )
-    
-    st.plotly_chart(fig_daily, use_container_width=True)
+# Graphique principal - Évolution des urgences et SOS
+st.markdown("### Évolution de l'activité grippale (3 dernières années)")
 
-with col_chart2:
-    st.markdown("#### 🚨 Statut des alertes")
-    
-    st.markdown("""
-        <div style='background: #fff7ed; border: 2px solid #fdba74; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.5rem;'>
-            <div style='display: flex; align-items: center; gap: 0.75rem;'>
-                <div style='width: 12px; height: 12px; background: #f97316; border-radius: 50%; animation: pulse 2s infinite;'></div>
-                <div>
-                    <div style='font-weight: 500; margin-bottom: 0.25rem;'>⚠️ Alerte pic épidémique</div>
-                    <div style='font-size: 0.75rem; color: #78716c;'>Activée il y a 2 jours</div>
-                </div>
-            </div>
-        </div>
-        
-        <div style='background: #f0fdf4; border: 2px solid #86efac; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.5rem;'>
-            <div style='display: flex; align-items: center; gap: 0.75rem;'>
-                <div style='width: 12px; height: 12px; background: #22c55e; border-radius: 50%;'></div>
-                <div>
-                    <div style='font-weight: 500; margin-bottom: 0.25rem;'>✅ Capacité normale</div>
-                    <div style='font-size: 0.75rem; color: #78716c;'>Aucune saturation</div>
-                </div>
-            </div>
-        </div>
-        
-        <div style='background: #eff6ff; border: 2px solid #93c5fd; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem;'>
-            <div style='display: flex; align-items: center; gap: 0.75rem;'>
-                <div style='width: 12px; height: 12px; background: #3b82f6; border-radius: 50%;'></div>
-                <div>
-                    <div style='font-weight: 500; margin-bottom: 0.25rem;'>ℹ️ Surveillance renforcée</div>
-                    <div style='font-size: 0.75rem; color: #78716c;'>Activité en hausse</div>
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🔧 Gérer les alertes", use_container_width=True):
-        st.info("Redirection vers la gestion des alertes...")
+# Récupérer les données des 3 dernières années
+max_year = national_data['date_semaine'].dt.year.max()
+min_year = max_year - 2
+three_years_data = national_data[national_data['date_semaine'].dt.year >= min_year].copy()
 
-st.markdown("")
-
-# Graphique principal - Corrélation et prévisions
-st.markdown("#### 📉 Corrélation IAS® & Passages aux urgences")
-st.caption("Données historiques et prévisions pour les 5 prochaines semaines")
+# Supprimer les valeurs nulles pour éviter les bugs
+three_years_data = three_years_data.dropna(subset=['urgences_grippe', 'sos_medecins'])
 
 fig_main = go.Figure()
 
-# Ligne IAS®
+# Urgences
 fig_main.add_trace(go.Scatter(
-    x=historicalData['week'],
-    y=historicalData['ias'],
-    mode='lines+markers',
-    name='IAS®',
-    line=dict(color='#2563eb', width=3),
-    marker=dict(size=8, color='#2563eb')
+    x=three_years_data['date_semaine'],
+    y=three_years_data['urgences_grippe'],
+    mode='lines',
+    name='Passages aux urgences',
+    line=dict(color='#ef4444', width=2),
+    yaxis='y'
 ))
 
-# Ligne Passages urgences
+# SOS Médecins
 fig_main.add_trace(go.Scatter(
-    x=historicalData['week'],
-    y=historicalData['erVisits'],
-    mode='lines+markers',
-    name='Passages urgences',
-    line=dict(color='#06b6d4', width=3),
-    marker=dict(size=8, color='#06b6d4')
+    x=three_years_data['date_semaine'],
+    y=three_years_data['sos_medecins'],
+    mode='lines',
+    name='Interventions SOS Médecins',
+    line=dict(color='#3b82f6', width=2),
+    yaxis='y2'
 ))
-
-# Ligne Prévisions
-fig_main.add_trace(go.Scatter(
-    x=historicalData['week'],
-    y=historicalData['predicted'],
-    mode='lines+markers',
-    name='Prévision',
-    line=dict(color='#f59e0b', width=3, dash='dash'),
-    marker=dict(size=8, color='#f59e0b')
-))
-
-# Ligne verticale "Aujourd'hui"
-fig_main.add_vline(
-    x="S47",
-    line_dash="dash",
-    line_color="#ef4444",
-    annotation_text="Aujourd'hui",
-    annotation_position="top"
-)
 
 fig_main.update_layout(
-    height=500,
-    margin=dict(l=20, r=20, t=40, b=20),
-    xaxis_title="Semaine",
-    yaxis_title="Valeur",
+    height=450,
     hovermode='x unified',
     plot_bgcolor='white',
     paper_bgcolor='white',
+    xaxis=dict(
+        title="Date",
+        rangeslider=dict(visible=True),
+        type="date"
+    ),
+    yaxis=dict(
+        title=dict(text="Passages aux urgences", font=dict(color="#ef4444")),
+        tickfont=dict(color="#ef4444")
+    ),
+    yaxis2=dict(
+        title=dict(text="Interventions SOS Médecins", font=dict(color="#3b82f6")),
+        tickfont=dict(color="#3b82f6"),
+        overlaying='y',
+        side='right'
+    ),
     legend=dict(
         orientation="h",
         yanchor="bottom",
         y=1.02,
-        xanchor="right",
-        x=1
+        xanchor="center",
+        x=0.5
     )
 )
 
+
 st.plotly_chart(fig_main, use_container_width=True)
 
-# Légendes
-col_leg1, col_leg2, col_leg3 = st.columns(3)
+st.markdown("")
 
-with col_leg1:
-    st.info("""
-    **🔵 IAS®**  
-    Indicateur d'activité de la surveillance grippale
-    """)
+# Graphiques secondaires
+col_chart1, col_chart2 = st.columns(2)
 
-with col_leg2:
-    st.info("""
-    **🔷 Passages urgences**  
-    Nombre de passages aux urgences pour grippe
-    """)
+with col_chart1:
+    st.markdown("### Top 5 régions - Urgences grippe")
 
-with col_leg3:
-    st.info("""
-    **🟠 Prévision**  
-    Estimation basée sur le modèle prédictif (85% précision)
-    """)
+    last_week = data[data['date_semaine'] == latest_date]
+    top_regions = last_week.nlargest(5, 'urgences_grippe')[['region', 'urgences_grippe']]
+
+    fig_regions = px.bar(
+        top_regions,
+        x='region',
+        y='urgences_grippe',
+        color='urgences_grippe',
+        color_continuous_scale='Reds',
+        labels={'urgences_grippe': 'Passages aux urgences', 'region': 'Région'}
+    )
+
+    fig_regions.update_layout(
+        height=350,
+        showlegend=False,
+        xaxis_tickangle=-45
+    )
+    fig_regions.update_traces(texttemplate='%{y:,.0f}', textposition='outside')
+
+    st.plotly_chart(fig_regions, use_container_width=True)
+
+with col_chart2:
+    st.markdown("### Vaccination par région (65+)")
+
+    vacc_by_region = last_week[['region', 'vacc_65_plus']].dropna().sort_values('vacc_65_plus', ascending=False)
+
+    fig_vacc = px.bar(
+        vacc_by_region,
+        x='region',
+        y='vacc_65_plus',
+        color='vacc_65_plus',
+        color_continuous_scale='RdYlGn',
+        range_color=[30, 80],
+        labels={'vacc_65_plus': 'Couverture (%)', 'region': 'Région'}
+    )
+
+    fig_vacc.update_layout(
+        height=350,
+        showlegend=False,
+        xaxis_tickangle=-45
+    )
+    fig_vacc.update_traces(texttemplate='%{y:.1f}%', textposition='outside')
+
+    st.plotly_chart(fig_vacc, use_container_width=True)
+
+st.markdown("")
+
+
+st.markdown("---")
+
+# Statistiques nationales détaillées
+st.markdown("### Statistiques nationales (dernière semaine)")
+
+stat_col1, stat_col2, stat_col3, stat_col4, stat_col5 = st.columns(5)
+
+with stat_col1:
+    total_urgences_week = last_week['urgences_grippe'].sum()
+    st.metric("Total urgences", f"{total_urgences_week:,.0f}")
+
+with stat_col2:
+    total_sos_week = last_week['sos_medecins'].sum()
+    st.metric("Total SOS Médecins", f"{total_sos_week:,.0f}")
+
+with stat_col3:
+    avg_vacc_65 = last_week['vacc_65_plus'].mean()
+    st.metric("Couverture 65+ moy.", f"{avg_vacc_65:.1f}%")
+
+with stat_col4:
+    nb_regions = len(last_week)
+    st.metric("Régions suivies", f"{nb_regions}")
+
+with stat_col5:
+    # Régions avec faible couverture
+    low_coverage = len(last_week[last_week['vacc_65_plus'] < 50])
+    st.metric("Régions < 50% vacc.", f"{low_coverage}", delta_color="inverse")
+
+st.markdown("")
+st.markdown("")
+
+
+# Tableau récapitulatif par région
+st.markdown("### Tableau récapitulatif par région (dernière semaine)")
+
+summary_table = last_week[['region', 'urgences_grippe', 'sos_medecins', 'vacc_65_plus', 'vacc_moins_65_risque']].copy()
+summary_table.columns = ['Région', 'Urgences', 'SOS Médecins', 'Vacc 65+', 'Vacc <65 risque']
+summary_table = summary_table.sort_values('Urgences', ascending=False)
+
+st.dataframe(
+    summary_table.style.background_gradient(
+        subset=['Urgences', 'SOS Médecins'],
+        cmap='Reds',
+        vmin=0
+    ).background_gradient(
+        subset=['Vacc 65+', 'Vacc <65 risque'],
+        cmap='RdYlGn',
+        vmin=30,
+        vmax=80
+    ).format({
+        'Urgences': '{:,.0f}',
+        'SOS Médecins': '{:,.0f}',
+        'Vacc 65+': '{:.1f}%',
+        'Vacc <65 risque': '{:.1f}%'
+    }),
+    use_container_width=True,
+    height=400
+)
 
 # Footer
 st.markdown("---")
-st.caption("Jonas - Système de surveillance et prédiction de l'activité grippale | Dernière mise à jour : " + datetime.now().strftime("%d/%m/%Y %H:%M"))
+st.caption(f"Jonas - Surveillance de l'activité grippale en France | Dernières données : {latest_date.strftime('%d/%m/%Y')} | {nb_regions} régions")
