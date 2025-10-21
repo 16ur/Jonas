@@ -385,6 +385,8 @@ st.dataframe(
     hide_index=True
 )
 
+st.markdown("*Les IAS® ne sont pas disponibles sur les données les plus récentes en raison des délais de collecte et de traitement.")
+
 # Bouton export tableau
 col_export1, col_export2, col_export3 = st.columns([2, 1, 2])
 with col_export2:
