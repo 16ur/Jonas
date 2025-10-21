@@ -274,25 +274,17 @@ st.markdown("---")
 # Statistiques nationales détaillées
 st.markdown("### Statistiques nationales (dernière semaine)")
 
-stat_col1, stat_col2, stat_col3, stat_col4, stat_col5 = st.columns(5)
+stat_col1, stat_col2, stat_col3 = st.columns(3)
 
 with stat_col1:
-    total_urgences_week = last_week['urgences_grippe'].sum()
-    st.metric("Total urgences", f"{total_urgences_week:,.0f}")
-
-with stat_col2:
-    total_sos_week = last_week['sos_medecins'].sum()
-    st.metric("Total SOS Médecins", f"{total_sos_week:,.0f}")
-
-with stat_col3:
     avg_vacc_65 = last_week['vacc_65_plus'].mean()
     st.metric("Couverture 65+ moy.", f"{avg_vacc_65:.1f}%")
 
-with stat_col4:
+with stat_col2:
     nb_regions = len(last_week)
     st.metric("Régions suivies", f"{nb_regions}")
 
-with stat_col5:
+with stat_col3:
     # Régions avec faible couverture
     low_coverage = len(last_week[last_week['vacc_65_plus'] < 50])
     st.metric("Régions < 50% vacc.", f"{low_coverage}", delta_color="inverse")
