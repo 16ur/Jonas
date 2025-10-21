@@ -219,144 +219,287 @@ st.markdown("### Carte des urgences grippe par région")
 
 last_week = data[data['date_semaine'] == latest_date].copy()
 
-region_coords = {
-    'Auvergne-Rhône-Alpes': (45.5, 5.0),
-    'Bourgogne-Franche-Comté': (47.0, 5.0),
-    'Bretagne': (48.0, -3.0),
-    'Centre-Val de Loire': (47.5, 1.5),
-    'Corse': (42.0, 9.0),
-    'Grand Est': (48.5, 6.0),
-    'Hauts-de-France': (50.0, 3.0),
-    'Île-de-France': (48.8, 2.5),
-    'Normandie': (49.0, 0.0),
-    'Nouvelle-Aquitaine': (45.0, 0.0),
-    'Occitanie': (43.5, 2.0),
-    'Pays de la Loire': (47.5, -1.0),
-    'Provence-Alpes-Côte d\'Azur': (43.5, 6.0),
-    # DOM-TOM
-    'Guadeloupe': (16.25, -61.58),
-    'Guyane': (4.0, -53.0),
-    'Réunion': (-21.13, 55.52),
-    'Mayotte': (-12.83, 45.14)
-}
+# Séparer métropole et DROM
+metropole = last_week[~last_week['region'].isin(['Guadeloupe', 'Martinique', 'Guyane', 'Réunion', 'Mayotte'])]
+drom = last_week[last_week['region'].isin(['Guadeloupe', 'Martinique', 'Guyane', 'Réunion', 'Mayotte'])]
 
-last_week['lat'] = last_week['region'].map(lambda x: region_coords.get(x, (0, 0))[0])
-last_week['lon'] = last_week['region'].map(lambda x: region_coords.get(x, (0, 0))[1])
+# === CARTE FRANCE MÉTROPOLITAINE ===
+st.markdown("**France métropolitaine**")
 
-metropole = last_week[~last_week['region'].isin(['Guadeloupe', 'Guyane', 'Réunion', 'Mayotte'])]
-domtom = last_week[last_week['region'].isin(['Guadeloupe', 'Guyane', 'Réunion', 'Mayotte'])]
+# Utiliser le GeoJSON français pour les régions
+geojson_url = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions.geojson"
 
-col_map1, col_map2 = st.columns([2, 1])
+fig_metro = px.choropleth(
+    metropole,
+    geojson=geojson_url,
+    locations='region',
+    color='urgences_grippe',
+    hover_name='region',
+    hover_data={
+        'urgences_grippe': ':,.0f',
+        'vacc_65_plus': ':.1f%'
+    },
+    color_continuous_scale='Reds',
+    labels={'urgences_grippe': 'Urgences grippe', 'vacc_65_plus': 'Couverture 65+'},
+    featureidkey="properties.nom"  # Clé pour mapper les noms de régions
+)
 
-with col_map1:
-    fig_map_metro = px.scatter_geo(
-        metropole,
-        lat='lat',
-        lon='lon',
-        size='urgences_grippe',
-        color='urgences_grippe',
-        hover_name='region',
-        hover_data={
-            'urgences_grippe': ':,.0f',
-            'vacc_65_plus': ':.1f',
-            'lat': False,
-            'lon': False
+fig_metro.update_geos(
+    fitbounds="locations",
+    visible=False
+)
+
+fig_metro.update_layout(
+    height=500,
+    margin=dict(l=0, r=0, t=30, b=0),
+    geo=dict(
+        showframe=False,
+        showcoastlines=True,
+        projection_type='mercator'
+    ),
+    coloraxis_colorbar=dict(
+        title=dict(
+            text="Urgences grippe",
+            side="right"
+        ),
+        len=0.8,
+        thickness=15,
+        x=1.02,
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="gray",
+        borderwidth=1
+    )
+)
+
+st.plotly_chart(fig_metro, use_container_width=True)
+
+# === CARTES DROM AVEC CERCLES (solution plus fiable) ===
+if len(drom) > 0:
+    st.markdown("**Départements et régions d'outre-mer**")
+    
+    # Coordonnées pour les DROM
+    drom_coords = {
+        'Guadeloupe': (16.25, -61.58),
+        'Martinique': (14.64, -61.02),
+        'Guyane': (4.0, -53.0),
+        'Réunion': (-21.13, 55.52),
+        'Mayotte': (-12.83, 45.14)
+    }
+    
+    # Ajouter les coordonnées au DataFrame DROM
+    drom['lat'] = drom['region'].map(lambda x: drom_coords.get(x, (0, 0))[0])
+    drom['lon'] = drom['region'].map(lambda x: drom_coords.get(x, (0, 0))[1])
+    
+    # Configuration des vues pour chaque DROM (plus dézoomées)
+    drom_configs = {
+        'Guadeloupe': {
+            'center': {'lat': 16.25, 'lon': -61.58},
+            'lonaxis_range': [-63, -60],
+            'lataxis_range': [15.5, 17.0],
+            'projection_scale': 25
         },
-        color_continuous_scale='Reds',
-        size_max=50,
-        labels={'urgences_grippe': 'Urgences', 'vacc_65_plus': 'Couverture 65+ (%)'},
-        title="France métropolitaine"
+        'Martinique': {
+            'center': {'lat': 14.64, 'lon': -61.02},
+            'lonaxis_range': [-62, -60],
+            'lataxis_range': [14.0, 15.5],
+            'projection_scale': 25
+        },
+        'Guyane': {
+            'center': {'lat': 4.0, 'lon': -53.0},
+            'lonaxis_range': [-56, -50],
+            'lataxis_range': [1, 7],
+            'projection_scale': 5
+        },
+        'Réunion': {
+            'center': {'lat': -21.13, 'lon': 55.52},
+            'lonaxis_range': [54.5, 56.5],
+            'lataxis_range': [-21.8, -20.5],
+            'projection_scale': 25
+        },
+        'Mayotte': {
+            'center': {'lat': -12.83, 'lon': 45.14},
+            'lonaxis_range': [44.5, 45.8],
+            'lataxis_range': [-13.2, -12.4],
+            'projection_scale': 40
+        }
+    }
+    
+    # Organiser les DROM sur plusieurs lignes (2-3 par ligne)
+    drom_regions = drom['region'].tolist()
+    
+    # Première ligne : 3 DROM
+    if len(drom_regions) >= 3:
+        col_drom1, col_drom2, col_drom3 = st.columns(3)
+        cols_line1 = [col_drom1, col_drom2, col_drom3]
+        
+        for i, region in enumerate(drom_regions[:3]):
+            if region in drom_configs:
+                with cols_line1[i]:
+                    region_data = drom[drom['region'] == region]
+                    config = drom_configs[region]
+                    
+                    # Métriques pour cette région
+                    urgences_val = region_data['urgences_grippe'].iloc[0]
+                    vacc_val = region_data['vacc_65_plus'].iloc[0]
+                    
+                    st.markdown(f"**{region}**")
+                    metric_col1, metric_col2 = st.columns(2)
+                    with metric_col1:
+                        st.metric("Urgences", f"{urgences_val:,.0f}")
+                    with metric_col2:
+                        st.metric("Vacc 65+", f"{vacc_val:.1f}%")
+                    
+                    # Carte avec cercles proportionnels colorés
+                    fig_drom = px.scatter_geo(
+                        region_data,
+                        lat='lat',
+                        lon='lon',
+                        size='urgences_grippe',
+                        color='urgences_grippe',
+                        hover_name='region',
+                        hover_data={
+                            'urgences_grippe': ':,.0f',
+                            'vacc_65_plus': ':.1f%',
+                            'lat': False,
+                            'lon': False
+                        },
+                        color_continuous_scale='Reds',
+                        size_max=80,
+                        labels={'urgences_grippe': 'Urgences grippe'},
+                        range_color=[0, last_week['urgences_grippe'].max()]
+                    )
+                    
+                    fig_drom.update_geos(
+                        center=config['center'],
+                        projection_scale=config['projection_scale'],
+                        lonaxis_range=config['lonaxis_range'],
+                        lataxis_range=config['lataxis_range'],
+                        visible=True,
+                        resolution=50,
+                        showcountries=True,
+                        countrycolor="lightgray",
+                        showland=True,
+                        landcolor="white",
+                        showocean=True,
+                        oceancolor="lightblue",
+                        coastlinewidth=1,
+                        coastlinecolor="gray"
+                    )
+                    
+                    fig_drom.update_layout(
+                        height=250,
+                        margin=dict(l=0, r=0, t=10, b=0),
+                        showlegend=False,
+                        coloraxis_showscale=False
+                    )
+                    
+                    st.plotly_chart(fig_drom, use_container_width=True, key=f"drom_{region}_line1")
+    
+    # Deuxième ligne : DROM restants (s'il y en a)
+    if len(drom_regions) > 3:
+        remaining_regions = drom_regions[3:]
+        
+        if len(remaining_regions) == 1:
+            col_center = st.columns([1, 1, 1])[1]
+            cols_line2 = [col_center]
+        elif len(remaining_regions) == 2:
+            col_left, col_right = st.columns([1, 1])
+            cols_line2 = [col_left, col_right]
+        else:
+            col_d1, col_d2, col_d3 = st.columns(3)
+            cols_line2 = [col_d1, col_d2, col_d3]
+        
+        for i, region in enumerate(remaining_regions[:3]):
+            if region in drom_configs and i < len(cols_line2):
+                with cols_line2[i]:
+                    region_data = drom[drom['region'] == region]
+                    config = drom_configs[region]
+                    
+                    # Métriques pour cette région
+                    urgences_val = region_data['urgences_grippe'].iloc[0]
+                    vacc_val = region_data['vacc_65_plus'].iloc[0]
+                    
+                    st.markdown(f"**{region}**")
+                    metric_col1, metric_col2 = st.columns(2)
+                    with metric_col1:
+                        st.metric("Urgences", f"{urgences_val:,.0f}")
+                    with metric_col2:
+                        st.metric("Vacc 65+", f"{vacc_val:.1f}%")
+                    
+                    # Carte avec cercles proportionnels colorés
+                    fig_drom = px.scatter_geo(
+                        region_data,
+                        lat='lat',
+                        lon='lon',
+                        size='urgences_grippe',
+                        color='urgences_grippe',
+                        hover_name='region',
+                        hover_data={
+                            'urgences_grippe': ':,.0f',
+                            'vacc_65_plus': ':.1f%',
+                            'lat': False,
+                            'lon': False
+                        },
+                        color_continuous_scale='Reds',
+                        size_max=80,
+                        labels={'urgences_grippe': 'Urgences grippe'},
+                        range_color=[0, last_week['urgences_grippe'].max()]
+                    )
+                    
+                    fig_drom.update_geos(
+                        center=config['center'],
+                        projection_scale=config['projection_scale'],
+                        lonaxis_range=config['lonaxis_range'],
+                        lataxis_range=config['lataxis_range'],
+                        visible=True,
+                        resolution=50,
+                        showcountries=True,
+                        countrycolor="lightgray",
+                        showland=True,
+                        landcolor="white",
+                        showocean=True,
+                        oceancolor="lightblue",
+                        coastlinewidth=1,
+                        coastlinecolor="gray"
+                    )
+                    
+                    fig_drom.update_layout(
+                        height=250,
+                        margin=dict(l=0, r=0, t=10, b=0),
+                        showlegend=False,
+                        coloraxis_showscale=False
+                    )
+                    
+                    st.plotly_chart(fig_drom, use_container_width=True, key=f"drom_{region}_line2")
+    
+    # Tableau récapitulatif DROM
+    st.markdown("**Récapitulatif DROM**")
+    drom_display = drom[['region', 'urgences_grippe', 'vacc_65_plus']].copy()
+    drom_display.columns = ['Région', 'Urgences', 'Vacc 65+']
+    drom_display = drom_display.sort_values('Urgences', ascending=False)
+
+    st.dataframe(
+        drom_display.style.background_gradient(
+            subset=['Urgences'],
+            cmap='Reds'
+        ).background_gradient(
+            subset=['Vacc 65+'],
+            cmap='RdYlGn',
+            vmin=30,
+            vmax=80
+        ).format({
+            'Urgences': '{:,.0f}',
+            'Vacc 65+': '{:.1f}%'
+        }),
+        use_container_width=True,
+        hide_index=True,
+        height=150
     )
-
-    fig_map_metro.update_geos(
-        scope='europe',
-        center=dict(lat=46.5, lon=2.5),
-        projection_scale=7,
-        visible=True,
-        resolution=50,
-        showcountries=True,
-        countrycolor="lightgray",
-        showland=True,
-        landcolor="white",
-        showlakes=True,
-        lakecolor="lightblue",
-        coastlinewidth=1,
-        coastlinecolor="gray"
-    )
-
-    fig_map_metro.update_layout(
-        height=500,
-        margin=dict(l=0, r=0, t=30, b=0),
-        showlegend=False
-    )
-
-    st.plotly_chart(fig_map_metro, use_container_width=True)
-
-with col_map2:
-    st.markdown("**DOM-TOM**")
-
-    if len(domtom) > 0:
-        fig_domtom_map = px.scatter_geo(
-            domtom,
-            lat='lat',
-            lon='lon',
-            size='urgences_grippe',
-            color='urgences_grippe',
-            hover_name='region',
-            hover_data={
-                'urgences_grippe': ':,.0f',
-                'vacc_65_plus': ':.1f',
-                'lat': False,
-                'lon': False
-            },
-            color_continuous_scale='Reds',
-            size_max=40,
-            labels={'urgences_grippe': 'Urgences', 'vacc_65_plus': 'Couverture 65+ (%)'}
-        )
-
-        fig_domtom_map.update_geos(
-            projection_type="natural earth",
-            showcountries=True,
-            countrycolor="lightgray",
-            showland=True,
-            landcolor="white",
-            showocean=True,
-            oceancolor="lightblue",
-            coastlinewidth=1,
-            coastlinecolor="gray"
-        )
-
-        fig_domtom_map.update_layout(
-            height=300,
-            margin=dict(l=0, r=0, t=10, b=0),
-            showlegend=False
-        )
-
-        st.plotly_chart(fig_domtom_map, use_container_width=True)
-
-        domtom_display = domtom[['region', 'urgences_grippe', 'vacc_65_plus']].copy()
-        domtom_display.columns = ['Région', 'Urgences', 'Couv. 65+']
-        domtom_display = domtom_display.sort_values('Urgences', ascending=False)
-
-        st.dataframe(
-            domtom_display.style.background_gradient(
-                subset=['Urgences'],
-                cmap='Reds'
-            ).background_gradient(
-                subset=['Couv. 65+'],
-                cmap='RdYlGn',
-                vmin=30,
-                vmax=80
-            ).format({
-                'Urgences': '{:,.0f}',
-                'Couv. 65+': '{:.1f}%'
-            }),
-            use_container_width=True,
-            hide_index=True,
-            height=150
-        )
-    else:
-        st.info("Aucune donnée DOM-TOM disponible")
+    
+    st.caption("🔴 Cercles plus gros et rouges: Plus d'urgences | 🟢 Vert: Meilleure vaccination")
+    
+else:
+    st.info("Aucune donnée DROM disponible")
 
 st.markdown("")
 
