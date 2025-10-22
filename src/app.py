@@ -4,6 +4,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 import numpy as np
+import requests
+import json
 from pathlib import Path
 
 # Configuration de la page
@@ -13,6 +15,50 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Cache pour les données GeoJSON
+@st.cache_data
+def load_geojson():
+    """Charge les données GeoJSON de la France avec les DROM"""
+    try:
+        # URL du GeoJSON complet avec DROM
+        url = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-avec-outre-mer.geojson"
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données géographiques: {e}")
+        return None
+
+@st.cache_data
+def load_drom_geojson():
+    """Extrait les géométries des DROM du GeoJSON complet"""
+    full_geojson = load_geojson()
+    if not full_geojson:
+        return None
+    
+    # Codes départementaux des DROM
+    drom_codes = {
+        '971': 'Guadeloupe',
+        '972': 'Martinique', 
+        '973': 'Guyane',
+        '974': 'Réunion',
+        '976': 'Mayotte'
+    }
+    
+    drom_geojson = {
+        "type": "FeatureCollection",
+        "features": []
+    }
+    
+    for feature in full_geojson['features']:
+        code_dept = feature['properties'].get('code')
+        if code_dept in drom_codes:
+            # Ajouter la région correspondante
+            feature['properties']['region'] = drom_codes[code_dept]
+            drom_geojson['features'].append(feature)
+    
+    return drom_geojson
 
 # CSS personnalisé
 st.markdown("""
@@ -214,153 +260,358 @@ fig_main.update_layout(
 st.plotly_chart(fig_main, use_container_width=True)
 
 st.markdown("---")
-
+st.markdown("---")
 st.markdown("### Carte des urgences grippe par région")
 
 last_week = data[data['date_semaine'] == latest_date].copy()
 
-region_coords = {
-    'Auvergne-Rhône-Alpes': (45.5, 5.0),
-    'Bourgogne-Franche-Comté': (47.0, 5.0),
-    'Bretagne': (48.0, -3.0),
-    'Centre-Val de Loire': (47.5, 1.5),
-    'Corse': (42.0, 9.0),
-    'Grand Est': (48.5, 6.0),
-    'Hauts-de-France': (50.0, 3.0),
-    'Île-de-France': (48.8, 2.5),
-    'Normandie': (49.0, 0.0),
-    'Nouvelle-Aquitaine': (45.0, 0.0),
-    'Occitanie': (43.5, 2.0),
-    'Pays de la Loire': (47.5, -1.0),
-    'Provence-Alpes-Côte d\'Azur': (43.5, 6.0),
-    # DOM-TOM
-    'Guadeloupe': (16.25, -61.58),
-    'Guyane': (4.0, -53.0),
-    'Réunion': (-21.13, 55.52),
-    'Mayotte': (-12.83, 45.14)
-}
+# Séparer métropole et DROM
+metropole = last_week[~last_week['region'].isin(['Guadeloupe', 'Martinique', 'Guyane', 'Réunion', 'Mayotte'])]
+drom = last_week[last_week['region'].isin(['Guadeloupe', 'Martinique', 'Guyane', 'Réunion', 'Mayotte'])]
 
-last_week['lat'] = last_week['region'].map(lambda x: region_coords.get(x, (0, 0))[0])
-last_week['lon'] = last_week['region'].map(lambda x: region_coords.get(x, (0, 0))[1])
+# === CARTE FRANCE MÉTROPOLITAINE OPTIMISÉE ===
+st.markdown("**France métropolitaine**")
 
-metropole = last_week[~last_week['region'].isin(['Guadeloupe', 'Guyane', 'Réunion', 'Mayotte'])]
-domtom = last_week[last_week['region'].isin(['Guadeloupe', 'Guyane', 'Réunion', 'Mayotte'])]
+# Optimisation: Réduire les données et simplifier le GeoJSON
+geojson_url = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions.geojson"
 
-col_map1, col_map2 = st.columns([2, 1])
+# Pre-filtrer les données pour éviter les calculs inutiles
+metropole_clean = metropole.dropna(subset=['urgences_grippe']).copy()
 
-with col_map1:
-    fig_map_metro = px.scatter_geo(
-        metropole,
-        lat='lat',
-        lon='lon',
-        size='urgences_grippe',
-        color='urgences_grippe',
-        hover_name='region',
-        hover_data={
-            'urgences_grippe': ':,.0f',
-            'vacc_65_plus': ':.1f',
-            'lat': False,
-            'lon': False
-        },
-        color_continuous_scale='Reds',
-        size_max=50,
-        labels={'urgences_grippe': 'Urgences', 'vacc_65_plus': 'Couverture 65+ (%)'},
-        title="France métropolitaine"
+fig_metro = px.choropleth(
+    metropole_clean,
+    geojson=geojson_url,
+    locations='region',
+    color='urgences_grippe',
+    hover_name='region',
+    hover_data={
+        'urgences_grippe': ':,.0f',
+        'vacc_65_plus': ':.1f'  # Retirer le % pour éviter les calculs
+    },
+    color_continuous_scale='Reds',
+    labels={'urgences_grippe': 'Urgences grippe', 'vacc_65_plus': 'Couverture 65+ (%)'},
+    featureidkey="properties.nom"
+)
+
+fig_metro.update_geos(
+    fitbounds="locations",
+    visible=False,
+    resolution=110  # Réduire la résolution pour plus de rapidité
+)
+
+fig_metro.update_layout(
+    height=400,  # Réduire la hauteur pour accélérer le rendu
+    margin=dict(l=0, r=0, t=20, b=0),
+    geo=dict(
+        showframe=False,
+        showcoastlines=False,  # Désactiver pour plus de rapidité
+        projection_type='mercator'
+    ),
+    coloraxis_colorbar=dict(
+        title=dict(
+            text="Urgences grippe",
+            side="right"
+        ),
+        len=0.8,
+        thickness=12
     )
+)
 
-    fig_map_metro.update_geos(
-        scope='europe',
-        center=dict(lat=46.5, lon=2.5),
-        projection_scale=7,
-        visible=True,
-        resolution=50,
-        showcountries=True,
-        countrycolor="lightgray",
-        showland=True,
-        landcolor="white",
-        showlakes=True,
-        lakecolor="lightblue",
-        coastlinewidth=1,
-        coastlinecolor="gray"
-    )
+st.plotly_chart(fig_metro, use_container_width=True)
 
-    fig_map_metro.update_layout(
-        height=500,
-        margin=dict(l=0, r=0, t=30, b=0),
-        showlegend=False
-    )
-
-    st.plotly_chart(fig_map_metro, use_container_width=True)
-
-with col_map2:
-    st.markdown("**DOM-TOM**")
-
-    if len(domtom) > 0:
-        fig_domtom_map = px.scatter_geo(
-            domtom,
-            lat='lat',
-            lon='lon',
-            size='urgences_grippe',
-            color='urgences_grippe',
-            hover_name='region',
-            hover_data={
-                'urgences_grippe': ':,.0f',
-                'vacc_65_plus': ':.1f',
-                'lat': False,
-                'lon': False
+# === CARTES DROM AVEC GEOJSON ===
+if len(drom) > 0:
+    st.markdown("**Départements et régions d'outre-mer**")
+    
+    # Charger les données GeoJSON des DROM
+    drom_geojson = load_drom_geojson()
+    
+    if drom_geojson:
+        # Mapping des codes départementaux vers les régions
+        dept_to_region = {
+            '971': 'Guadeloupe',
+            '972': 'Martinique', 
+            '973': 'Guyane',
+            '974': 'Réunion',
+            '976': 'Mayotte'
+        }
+        
+        # Configuration des vues pour chaque DROM
+        drom_configs = {
+            'Guadeloupe': {
+                'center': {'lat': 16.25, 'lon': -61.58},
+                'lonaxis_range': [-64, -59],
+                'lataxis_range': [15, 18],
+                'projection_scale': 12
             },
-            color_continuous_scale='Reds',
-            size_max=40,
-            labels={'urgences_grippe': 'Urgences', 'vacc_65_plus': 'Couverture 65+ (%)'}
-        )
-
-        fig_domtom_map.update_geos(
-            projection_type="natural earth",
-            showcountries=True,
-            countrycolor="lightgray",
-            showland=True,
-            landcolor="white",
-            showocean=True,
-            oceancolor="lightblue",
-            coastlinewidth=1,
-            coastlinecolor="gray"
-        )
-
-        fig_domtom_map.update_layout(
-            height=300,
-            margin=dict(l=0, r=0, t=10, b=0),
-            showlegend=False
-        )
-
-        st.plotly_chart(fig_domtom_map, use_container_width=True)
-
-        domtom_display = domtom[['region', 'urgences_grippe', 'vacc_65_plus']].copy()
-        domtom_display.columns = ['Région', 'Urgences', 'Couv. 65+']
-        domtom_display = domtom_display.sort_values('Urgences', ascending=False)
-
-        st.dataframe(
-            domtom_display.style.background_gradient(
-                subset=['Urgences'],
-                cmap='Reds'
-            ).background_gradient(
-                subset=['Couv. 65+'],
-                cmap='RdYlGn',
-                vmin=30,
-                vmax=80
-            ).format({
-                'Urgences': '{:,.0f}',
-                'Couv. 65+': '{:.1f}%'
-            }),
-            use_container_width=True,
-            hide_index=True,
-            height=150
-        )
+            'Martinique': {
+                'center': {'lat': 14.64, 'lon': -61.02},
+                'lonaxis_range': [-63, -58],
+                'lataxis_range': [13, 16],
+                'projection_scale': 12
+            },
+            'Guyane': {
+                'center': {'lat': 4.0, 'lon': -53.0},
+                'lonaxis_range': [-58, -48],
+                'lataxis_range': [0, 8],
+                'projection_scale': 4
+            },
+            'Réunion': {
+                'center': {'lat': -21.13, 'lon': 55.52},
+                'lonaxis_range': [53, 58],
+                'lataxis_range': [-23, -19],
+                'projection_scale': 12
+            },
+            'Mayotte': {
+                'center': {'lat': -12.78, 'lon': 45.22},
+                'lonaxis_range': [43, 47],
+                'lataxis_range': [-14, -11],
+                'projection_scale': 15
+            }
+        }
+        
+        # Organiser les DROM sur plusieurs lignes
+        drom_regions = drom['region'].tolist()
+        
+        # Première ligne : 3 DROM
+        if len(drom_regions) >= 3:
+            col_drom1, col_drom2, col_drom3 = st.columns(3)
+            cols_line1 = [col_drom1, col_drom2, col_drom3]
+            
+            for i, region in enumerate(drom_regions[:3]):
+                if region in drom_configs:
+                    with cols_line1[i]:
+                        region_data = drom[drom['region'] == region]
+                        config = drom_configs[region]
+                        
+                        # Métriques pour cette région avec gestion des NaN
+                        urgences_val = region_data['urgences_grippe'].iloc[0]
+                        vacc_val = region_data['vacc_65_plus'].iloc[0]
+                        
+                        st.markdown(f"**{region}**")
+                        
+                        # Métriques avec gestion des NaN
+                        metric_col1, metric_col2 = st.columns(2)
+                        with metric_col1:
+                            if pd.isna(urgences_val) or urgences_val == 0:
+                                st.metric("Urgences", "N/A")
+                            else:
+                                st.metric("Urgences", f"{urgences_val:,.0f}")
+                        with metric_col2:
+                            if pd.isna(vacc_val):
+                                st.metric("Vacc 65+", "N/A")
+                            else:
+                                st.metric("Vacc 65+", f"{vacc_val:.1f}%")
+                        
+                        # Créer une carte choroplèthe avec GeoJSON
+                        if pd.isna(urgences_val) or urgences_val == 0:
+                            # Carte simple sans données avec texte overlay
+                            fig_drom = go.Figure()
+                            
+                            # Ajouter les contours du territoire
+                            for feature in drom_geojson['features']:
+                                if feature['properties'].get('region') == region:
+                                    fig_drom.add_trace(go.Scattergeo(
+                                        lon=[config['center']['lon']],
+                                        lat=[config['center']['lat']],
+                                        mode='markers',
+                                        marker=dict(size=0, opacity=0),
+                                        showlegend=False
+                                    ))
+                            
+                            # Ajouter annotation de texte
+                            fig_drom.add_annotation(
+                                x=0.5, y=0.5,
+                                xref="paper", yref="paper",
+                                text="AUCUNE DONNÉE<br>D'URGENCES<br>DISPONIBLE",
+                                showarrow=False,
+                                font=dict(size=12, color="red", family="Arial"),
+                                bgcolor="rgba(255,255,255,0.9)",
+                                bordercolor="red",
+                                borderwidth=1,
+                                xanchor="center",
+                                yanchor="middle"
+                            )
+                        else:
+                            # Préparer les données pour le choroplèthe
+                            drom_dept_data = []
+                            
+                            # Trouver le code département correspondant à cette région
+                            region_dept_code = None
+                            for code, reg_name in dept_to_region.items():
+                                if reg_name == region:
+                                    region_dept_code = code
+                                    break
+                            
+                            if region_dept_code:
+                                drom_dept_data.append({
+                                    'code': region_dept_code,
+                                    'urgences_grippe': urgences_val,
+                                    'region': region
+                                })
+                            
+                            # Créer DataFrame pour le choroplèthe
+                            df_drom_chart = pd.DataFrame(drom_dept_data)
+                            
+                            # Créer la carte choroplèthe
+                            fig_drom = px.choropleth(
+                                df_drom_chart,
+                                geojson=drom_geojson,
+                                locations='code',
+                                featureidkey="properties.code",
+                                color='urgences_grippe',
+                                hover_name='region',
+                                hover_data={'urgences_grippe': ':,.0f', 'code': False},
+                                color_continuous_scale='Reds',
+                                range_color=[0, df_drom_chart['urgences_grippe'].max()] if not df_drom_chart.empty else [0, 1]
+                            )
+                        
+                        # Configuration de la vue géographique
+                        fig_drom.update_geos(
+                            center=config['center'],
+                            lonaxis_range=config['lonaxis_range'],
+                            lataxis_range=config['lataxis_range'],
+                            projection_scale=config['projection_scale'],
+                            showframe=False,
+                            showcoastlines=True,
+                            projection_type='mercator',
+                            oceancolor="lightblue",
+                            coastlinewidth=1,
+                            coastlinecolor="gray"
+                        )
+                        
+                        fig_drom.update_layout(
+                            height=200,
+                            margin=dict(l=0, r=0, t=5, b=0),
+                            showlegend=False,
+                            coloraxis_showscale=False
+                        )
+                        
+                        st.plotly_chart(fig_drom, use_container_width=True, key=f"drom_{region}_geojson_line1")
+        
+        # Deuxième ligne : DROM restants (s'il y en a)
+        if len(drom_regions) > 3:
+            remaining_regions = drom_regions[3:]
+            
+            if len(remaining_regions) == 1:
+                col_center = st.columns([1, 1, 1])[1]
+                cols_line2 = [col_center]
+            elif len(remaining_regions) == 2:
+                col_left, col_right = st.columns([1, 1])
+                cols_line2 = [col_left, col_right]
+            else:
+                col_d1, col_d2, col_d3 = st.columns(3)
+                cols_line2 = [col_d1, col_d2, col_d3]
+            
+            for i, region in enumerate(remaining_regions[:3]):
+                if region in drom_configs and i < len(cols_line2):
+                    with cols_line2[i]:
+                        region_data = drom[drom['region'] == region]
+                        config = drom_configs[region]
+                        
+                        # Métriques pour cette région avec gestion des NaN
+                        urgences_val = region_data['urgences_grippe'].iloc[0]
+                        vacc_val = region_data['vacc_65_plus'].iloc[0]
+                        
+                        st.markdown(f"**{region}**")
+                        
+                        # Métriques avec gestion des NaN
+                        metric_col1, metric_col2 = st.columns(2)
+                        with metric_col1:
+                            if pd.isna(urgences_val) or urgences_val == 0:
+                                st.metric("Urgences", "N/A")
+                            else:
+                                st.metric("Urgences", f"{urgences_val:,.0f}")
+                        with metric_col2:
+                            if pd.isna(vacc_val):
+                                st.metric("Vacc 65+", "N/A")
+                            else:
+                                st.metric("Vacc 65+", f"{vacc_val:.1f}%")
+                        
+                        # Créer une carte choroplèthe avec GeoJSON (même logique que ligne 1)
+                        if pd.isna(urgences_val) or urgences_val == 0:
+                            fig_drom = go.Figure()
+                            
+                            fig_drom.add_trace(go.Scattergeo(
+                                lon=[config['center']['lon']],
+                                lat=[config['center']['lat']],
+                                mode='markers',
+                                marker=dict(size=0, opacity=0),
+                                showlegend=False
+                            ))
+                            
+                            fig_drom.add_annotation(
+                                x=0.5, y=0.5,
+                                xref="paper", yref="paper",
+                                text="AUCUNE DONNÉE<br>D'URGENCES<br>DISPONIBLE",
+                                showarrow=False,
+                                font=dict(size=12, color="red", family="Arial"),
+                                bgcolor="rgba(255,255,255,0.9)",
+                                bordercolor="red",
+                                borderwidth=1,
+                                xanchor="center",
+                                yanchor="middle"
+                            )
+                        else:
+                            # Préparer les données pour le choroplèthe
+                            drom_dept_data = []
+                            region_dept_code = None
+                            for code, reg_name in dept_to_region.items():
+                                if reg_name == region:
+                                    region_dept_code = code
+                                    break
+                            
+                            if region_dept_code:
+                                drom_dept_data.append({
+                                    'code': region_dept_code,
+                                    'urgences_grippe': urgences_val,
+                                    'region': region
+                                })
+                            
+                            df_drom_chart = pd.DataFrame(drom_dept_data)
+                            
+                            fig_drom = px.choropleth(
+                                df_drom_chart,
+                                geojson=drom_geojson,
+                                locations='code',
+                                featureidkey="properties.code",
+                                color='urgences_grippe',
+                                hover_name='region',
+                                hover_data={'urgences_grippe': ':,.0f', 'code': False},
+                                color_continuous_scale='Reds',
+                                range_color=[0, df_drom_chart['urgences_grippe'].max()] if not df_drom_chart.empty else [0, 1]
+                            )
+                        
+                        fig_drom.update_geos(
+                            center=config['center'],
+                            lonaxis_range=config['lonaxis_range'],
+                            lataxis_range=config['lataxis_range'],
+                            projection_scale=config['projection_scale'],
+                            showframe=False,
+                            showcoastlines=True,
+                            projection_type='mercator',
+                            oceancolor="lightblue",
+                            coastlinewidth=1,
+                            coastlinecolor="gray"
+                        )
+                        
+                        fig_drom.update_layout(
+                            height=200,
+                            margin=dict(l=0, r=0, t=5, b=0),
+                            showlegend=False,
+                            coloraxis_showscale=False
+                        )
+                        
+                        st.plotly_chart(fig_drom, use_container_width=True, key=f"drom_{region}_geojson_line2")
     else:
-        st.info("Aucune donnée DOM-TOM disponible")
+        st.error("Impossible de charger les données géographiques des DROM")
+
+else:
+    st.info("Aucune donnée DROM disponible")
+
 
 st.markdown("")
 
-st.markdown("")
 
 # Graphiques secondaires
 col_chart1, col_chart2 = st.columns(2)
