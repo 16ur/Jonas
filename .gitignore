@@ -1,1 +1,9 @@
-src/utils/__pycache__/
+# macOS
+.DS_Store
+*/.DS_Store
+*/*/.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+
