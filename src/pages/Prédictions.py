@@ -40,7 +40,7 @@ def load_model_lgbm():
         return model_data
 
     except Exception as e:
-        st.error(f"❌ Erreur LightGBM : {e}")
+        st.error(f"Erreur LightGBM : {e}")
         return None
 
 @st.cache_resource
@@ -53,14 +53,14 @@ def load_model_rf():
 
         # Debug: vérifier si le dossier existe
         if not model_dir.exists():
-            st.warning(f"⚠️ Dossier RF_models n'existe pas: {model_dir}")
+            st.warning(f"Dossier RF_models n'existe pas: {model_dir}")
             return None
 
         model_files = list(model_dir.glob('*.pkl'))
 
         # Debug: montrer les fichiers trouvés
         if not model_files:
-            st.warning(f"⚠️ Aucun fichier .pkl trouvé dans {model_dir}")
+            st.warning(f"Aucun fichier .pkl trouvé dans {model_dir}")
             all_files = list(model_dir.glob('*'))
             if all_files:
                 st.caption(f"Fichiers présents: {[f.name for f in all_files]}")
@@ -86,7 +86,7 @@ def load_model_rf():
                 json_file = latest_model.parent / json_name
 
         if not json_file.exists():
-            st.warning(f"⚠️ Fichier JSON features manquant: {json_file.name}")
+            st.warning(f"Fichier JSON features manquant: {json_file.name}")
             st.caption(f"Cherché: {json_file}")
             return None
 
@@ -108,7 +108,7 @@ def load_model_rf():
         return model_data
 
     except Exception as e:
-        st.error(f"❌ Erreur Random Forest : {e}")
+        st.error(f"Erreur Random Forest : {e}")
         import traceback
         st.code(traceback.format_exc())
         return None
@@ -129,7 +129,7 @@ def load_data():
         df['date_semaine'] = pd.to_datetime(df['date_semaine'])
         return df
     except Exception as e:
-        st.error(f"❌ Erreur lors du chargement des données : {e}")
+        st.error(f"Erreur lors du chargement des données : {e}")
         return None
 
 # ===== PRÉPARER LES FEATURES POUR PRÉDICTION =====
@@ -388,11 +388,11 @@ def make_predictions(df, model_data, region='France', n_weeks=8):
 # ===== HEADER =====
 col_title, col_cache = st.columns([4, 1])
 with col_title:
-    st.title("🤖 Modèle Prédictif")
+    st.title("Modèle Prédictif")
     st.markdown("Analyse des prévisions et performance des modèles de machine learning")
 
 with col_cache:
-    if st.button("🔄 Recharger modèles", help="Vider le cache et recharger les modèles"):
+    if st.button("Recharger modèles", help="Vider le cache et recharger les modèles"):
         st.cache_resource.clear()
         st.rerun()
 
@@ -415,16 +415,16 @@ with col_model:
         available_models.append('RandomForest')
 
     if not available_models:
-        st.error("❌ Aucun modèle disponible. Veuillez entraîner un modèle d'abord.")
+        st.error("Aucun modèle disponible. Veuillez entraîner un modèle d'abord.")
         st.stop()
 
     model_labels = {
-        'LightGBM': '🚀 LightGBM (Rapide)',
-        'RandomForest': '🎯 Random Forest (Précis)'
+        'LightGBM': 'LightGBM (Rapide)',
+        'RandomForest': 'Random Forest (Précis)'
     }
 
     selected_model_type = st.selectbox(
-        "🧠 Choisir le modèle",
+        "Choisir le modèle",
         options=available_models,
         format_func=lambda x: model_labels.get(x, x),
         index=1 if 'RandomForest' in available_models else 0  # RF par défaut si disponible
@@ -435,10 +435,10 @@ model_data = load_model(selected_model_type)
 df = load_data()
 
 if model_data is None or df is None:
-    st.error(f"❌ Impossible de charger le modèle {selected_model_type} ou les données.")
+    st.error(f"Impossible de charger le modèle {selected_model_type} ou les données.")
     st.stop()
 
-st.success(f"✅ Modèle chargé : **{model_data.get('model_file', 'Unknown')}**")
+st.success(f"Modèle chargé : **{model_data.get('model_file', 'Unknown')}**")
 
 # Lire les métriques selon le type de modèle
 if selected_model_type == 'LightGBM':
@@ -472,9 +472,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 col_select1, col_select2 = st.columns([3, 1])
 with col_select1:
     regions_disponibles = ['France'] + sorted(df['region'].unique().tolist())
-    selected_region = st.selectbox("🌍 Sélectionner une région", regions_disponibles, index=0)
+    selected_region = st.selectbox("Sélectionner une région", regions_disponibles, index=0)
 with col_select2:
-    n_weeks = st.slider("📅 Semaines à prédire", min_value=4, max_value=12, value=8, step=1)
+    n_weeks = st.slider("Semaines à prédire", min_value=4, max_value=12, value=8, step=1)
 
 # ===== MÉTRIQUES PRINCIPALES =====
 col1, col2, col3, col4 = st.columns(4)
@@ -483,7 +483,6 @@ with col1:
     model_display_name = "LightGBM" if selected_model_type == 'LightGBM' else "Random Forest"
     st.markdown(f"""
     <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #EEF2FF 0%, #DBEAFE 100%); border-radius: 16px;'>
-        <div style='font-size: 32px; font-weight: bold; margin-bottom: 8px;'>🧠</div>
         <div style='font-size: 24px; font-weight: bold; margin-bottom: 4px;'>{model_display_name}</div>
         <div style='font-size: 14px; color: #6B7280;'>Type de modèle</div>
     </div>
@@ -492,7 +491,6 @@ with col1:
 with col2:
     st.markdown(f"""
     <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border-radius: 16px;'>
-        <div style='font-size: 32px; font-weight: bold; margin-bottom: 8px;'>🎯</div>
         <div style='font-size: 24px; font-weight: bold; margin-bottom: 4px;'>{r2_score*100:.0f}%</div>
         <div style='font-size: 14px; color: #6B7280;'>Précision (R²)</div>
     </div>
@@ -501,7 +499,6 @@ with col2:
 with col3:
     st.markdown("""
     <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%); border-radius: 16px;'>
-        <div style='font-size: 32px; font-weight: bold; margin-bottom: 8px;'>📅</div>
         <div style='font-size: 24px; font-weight: bold; margin-bottom: 4px;'>2019-2021</div>
         <div style='font-size: 14px; color: #6B7280;'>Données entraînement</div>
     </div>
@@ -510,7 +507,6 @@ with col3:
 with col4:
     st.markdown(f"""
     <div style='text-align: center; padding: 20px; background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); border-radius: 16px;'>
-        <div style='font-size: 32px; font-weight: bold; margin-bottom: 8px;'>📈</div>
         <div style='font-size: 24px; font-weight: bold; margin-bottom: 4px;'>{n_weeks}</div>
         <div style='font-size: 14px; color: #6B7280;'>Semaines prédites</div>
     </div>
@@ -522,7 +518,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ===== BANNER INFORMATIF =====
 if selected_model_type == 'LightGBM':
     info_text = f"""
-### 💡 Comment fonctionne le modèle LightGBM ?
+### Comment fonctionne le modèle LightGBM ?
 
 Notre modèle utilise un algorithme **LightGBM** (Gradient Boosting) entraîné sur 3 années de données (2019-2021)
 de vaccination, passages aux urgences et IAS®. Il analyse les tendances temporelles et les corrélations pour prédire
@@ -537,7 +533,7 @@ permettant une interprétation prudente des prévisions. Plus l'intervalle est l
 """
 else:  # RandomForest
     info_text = f"""
-### 💡 Comment fonctionne le modèle Random Forest ?
+### Comment fonctionne le modèle Random Forest ?
 
 Notre modèle utilise un algorithme **Random Forest** avec transformation log1p pour mieux capturer les pics épidémiques.
 Il a été entraîné sur plusieurs années de données avec **pondération des pics** (3x plus de poids sur les valeurs élevées)
@@ -557,7 +553,7 @@ st.info(info_text)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ===== GÉNÉRER LES PRÉDICTIONS =====
-with st.spinner(f"🔮 Génération des prédictions pour {selected_region}..."):
+with st.spinner(f"Génération des prédictions pour {selected_region}..."):
     try:
         recent_data, future_dates, predictions, lower_bounds, upper_bounds = make_predictions(
             df, model_data, region=selected_region, n_weeks=n_weeks
@@ -579,11 +575,11 @@ with st.spinner(f"🔮 Génération des prédictions pour {selected_region}...")
         date_labels = [d.strftime('%Y-S%U') for d in all_dates]
 
     except Exception as e:
-        st.error(f"❌ Erreur lors de la génération des prédictions : {e}")
+        st.error(f"Erreur lors de la génération des prédictions : {e}")
         st.stop()
 
 # ===== GRAPHIQUE PRINCIPAL : PRÉDICTIONS =====
-st.markdown("### 🔮 Prévisions avec intervalles de confiance")
+st.markdown("### Prévisions avec intervalles de confiance")
 st.caption(f"Prévisions de passages aux urgences pour {selected_region} - {n_weeks} prochaines semaines avec marges d'erreur")
 
 # Créer le graphique
@@ -706,7 +702,7 @@ col_left, col_right = st.columns(2)
 
 # ===== COLONNE GAUCHE : PERFORMANCE DU MODÈLE =====
 with col_left:
-    st.markdown("### 📊 Performance du modèle")
+    st.markdown("### Performance du modèle")
 
     # Résultats de validation depuis le CSV
     try:
@@ -756,7 +752,7 @@ with col_left:
 
 # ===== COLONNE DROITE : CARACTÉRISTIQUES =====
 with col_right:
-    st.markdown("### ⚙️ Caractéristiques du modèle")
+    st.markdown("### Caractéristiques du modèle")
 
     # Caractéristiques dynamiques depuis le modèle
     try:
@@ -843,7 +839,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ===== RÉSULTATS DE VALIDATION =====
-st.markdown("### 🎯 Résultats de validation sur données test (2022-2024)")
+st.markdown("### Résultats de validation sur données test (2022-2024)")
 
 val_col1, val_col2, val_col3, val_col4 = st.columns(4)
 
@@ -883,7 +879,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # Explication validation
 st.markdown(f"""
 <div style='padding: 20px; background: #F9FAFB; border-radius: 12px;'>
-    <strong>📋 Méthode de validation :</strong> Le modèle a été entraîné sur les données 2019-2021
+    <strong>Méthode de validation :</strong> Le modèle a été entraîné sur les données 2019-2021
     et testé sur les données 2022-2024 (jamais vues pendant l'entraînement). Une validation croisée
     temporelle 3 folds a été réalisée pour garantir la robustesse.
 </div>
@@ -891,7 +887,7 @@ st.markdown(f"""
 
 st.markdown(f"""
 <div style='padding: 20px; background: #F9FAFB; border-radius: 12px; margin-top: 16px;'>
-    <strong>🎓 Interprétation des métriques :</strong>
+    <strong>Interprétation des métriques :</strong>
     <ul style='margin-top: 12px;'>
         <li><strong>R² = {r2_score:.2f}</strong> : Le modèle explique {r2_score*100:.0f}% de la variance des données (excellent)</li>
         <li><strong>Accuracy = {accuracy:.0f}%</strong> : {accuracy:.0f}% des prédictions de niveau d'alerte sont correctes</li>
@@ -903,7 +899,7 @@ st.markdown(f"""
 
 st.markdown(f"""
 <div style='padding: 20px; background: #F0FDF4; border-radius: 12px; margin-top: 16px; border-left: 4px solid #10b981;'>
-    <strong>✅Verdict :</strong> Le modèle est <strong>fiable</strong> et peut être utilisé pour anticiper
+    <strong>Verdict :</strong> Le modèle est <strong>fiable</strong> et peut être utilisé pour anticiper
     les pics épidémiques avec une marge d'erreur raisonnable de ±{mae:.0f} passages par semaine.
 </div>
 """, unsafe_allow_html=True)
@@ -914,4 +910,4 @@ st.markdown(f"""
 st.markdown("---")
 st.caption(f"Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M')}")
 st.caption(f"Modèle : LightGBM ({model_data['model_name']}) | Entraînement : 2019-2021 | Test : 2022-2024 | Validation croisée : 3 folds temporels")
-st.caption(f"⚠️ Les prédictions ont une marge d'erreur de ±{mae:.0f} passages. Utilisez-les comme aide à la décision, pas comme vérité absolue.")
+st.caption(f"Les prédictions ont une marge d'erreur de ±{mae:.0f} passages. Utilisez-les comme aide à la décision, pas comme vérité absolue.")
