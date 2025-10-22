@@ -645,31 +645,33 @@ with val_col4:
     """, unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
-
 # Explication validation
 st.markdown(f"""
 <div style='padding: 20px; background: #F9FAFB; border-radius: 12px;'>
     <strong>📋 Méthode de validation :</strong> Le modèle a été entraîné sur les données 2019-2021
     et testé sur les données 2022-2024 (jamais vues pendant l'entraînement). Une validation croisée
     temporelle 3 folds a été réalisée pour garantir la robustesse.
+</div>
+""", unsafe_allow_html=True)
 
-    <br><br>
-
+st.markdown(f"""
+<div style='padding: 20px; background: #F9FAFB; border-radius: 12px; margin-top: 16px;'>
     <strong>🎓 Interprétation des métriques :</strong>
-    <ul>
+    <ul style='margin-top: 12px;'>
         <li><strong>R² = {r2_score:.2f}</strong> : Le modèle explique {r2_score*100:.0f}% de la variance des données (excellent)</li>
         <li><strong>Accuracy = {accuracy:.0f}%</strong> : {accuracy:.0f}% des prédictions de niveau d'alerte sont correctes</li>
         <li><strong>MAE = {mae:.0f}</strong> : En moyenne, le modèle se trompe de ±{mae:.0f} passages</li>
         <li><strong>RMSE = {rmse:.0f}</strong> : Écart-type des erreurs (pénalise plus les grosses erreurs)</li>
     </ul>
-
-    <br>
-
-    <strong>✅ Verdict :</strong> Le modèle est <strong>fiable</strong> et peut être utilisé pour anticiper
-    les pics épidémiques avec une marge d'erreur raisonnable de ±{mae:.0f} passages par semaine.
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown(f"""
+<div style='padding: 20px; background: #F0FDF4; border-radius: 12px; margin-top: 16px; border-left: 4px solid #10b981;'>
+    <strong>✅Verdict :</strong> Le modèle est <strong>fiable</strong> et peut être utilisé pour anticiper
+    les pics épidémiques avec une marge d'erreur raisonnable de ±{mae:.0f} passages par semaine.
+</div>
+""", unsafe_allow_html=True)
 
 
 
