@@ -11,7 +11,7 @@ from pathlib import Path
 # Configuration de la page
 st.set_page_config(
     page_title="Jonas - Surveillance Grippale",
-    page_icon="🏥",
+    page_icon="assets/jonas-favicon.ico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -133,10 +133,42 @@ else:
     alert_level = "info"
     alert_text = "Situation stable"
 
-# Header
-st.title("Tableau de bord Jonas")
-st.markdown("**Surveillance de l'activité grippale en France**")
-st.markdown("")
+# ...existing code...
+
+# Header avec logo et titre bien alignés
+logo_path = Path("assets/jonas-logo.svg")
+col_logo, col_title = st.columns([0.1, 0.9])
+
+with col_logo:
+    if logo_path.exists():
+        st.image(str(logo_path), width=80)
+    else:
+        # Emoji de fallback si pas de logo
+        st.markdown(
+            """
+            <div style="display: flex; justify-content: center; align-items: center; height: 80px;">
+                <span style="font-size: 48px;">🏥</span>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+
+with col_title:
+    st.markdown(
+        """
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 80px;">
+            <h1 style="margin: 0; font-size: 2.5rem; font-weight: 600; color: #1f2937;">
+                Tableau de bord Jonas
+            </h1>
+            <p style="margin: 8px 0 0 0; font-size: 1.1rem; color: #6b7280; font-weight: 500;">
+                Surveillance de l'activité grippale en France
+            </p>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+
+st.markdown("---")
 
 # Info dernière mise à jour
 col_info1, col_info2 = st.columns([2, 1])

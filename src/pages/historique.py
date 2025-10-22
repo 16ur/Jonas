@@ -13,7 +13,7 @@ import numpy as np
 # ===== CONFIGURATION PAGE =====
 st.set_page_config(
     page_title="Données Historiques - Jonas",
-    page_icon="📅",
+    page_icon="assets/jonas-favicon.ico",
     layout="wide"
 )
 

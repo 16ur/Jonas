@@ -15,7 +15,7 @@ from pathlib import Path
 # ===== CONFIGURATION PAGE =====
 st.set_page_config(
     page_title="Modèle Prédictif - Jonas",
-    page_icon="🤖",
+    page_icon="assets/jonas-favicon.ico",
     layout="wide"
 )
 

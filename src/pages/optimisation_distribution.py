@@ -12,8 +12,8 @@ from pathlib import Path
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Jonas - Optimisation Distribution",
-    page_icon="📊",
+    page_title="Optimisation distribution - Jonas",
+    page_icon="assets/jonas-favicon.ico",
     layout="wide"
 )
 
